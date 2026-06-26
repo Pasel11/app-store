@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>متجر التطبيقات | App Store</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📱</text></svg>">
+</head>
+<body dir="rtl">
+
+<!-- شريط التنقل -->
+<nav class="navbar">
+    <div class="navbar-content">
+        <div class="logo" onclick="location.reload()">
+            <div class="logo-icon">📱</div>
+            <span>متجر التطبيقات</span>
+        </div>
+        <div class="search-bar">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="search-input" placeholder="ابحث عن تطبيقات..." data-i18n-placeholder="search">
+        </div>
+        <div class="nav-actions" id="nav-actions">
+            <!-- سيتم ملؤها ديناميكياً -->
+        </div>
+        <button class="nav-btn cart-btn" onclick="openCart()">
+            🛒 <span data-i18n="cart">السلة</span>
+            <span class="cart-badge" id="cart-badge" style="display:none;">0</span>
+        </button>
+    </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+    <div class="hero-content">
+        <h1 data-i18n="hero_title">متجر التطبيقات الأول عربياً</h1>
+        <p data-i18n="hero_subtitle">100+ تطبيق احترافي في كل المجالات - تطبيقات أندرويد، ويب، أدوات، قوالب وأكثر</p>
+        <div class="hero-buttons">
+            <button class="hero-btn primary" onclick="document.getElementById('categories-section').scrollIntoView({behavior:'smooth'})">
+                🚀 <span data-i18n="browse_now">تصفح الآن</span>
+            </button>
+            <button class="hero-btn secondary" onclick="openUploadModal()">
+                📤 <span data-i18n="upload_app">رفع تطبيق</span>
+            </button>
+        </div>
+        <div class="hero-stats">
+            <div class="hero-stat">
+                <span class="num">100+</span>
+                <span class="label" data-i18n="stats_apps">تطبيق</span>
+            </div>
+            <div class="hero-stat">
+                <span class="num">12</span>
+                <span class="label" data-i18n="stats_users">فئة</span>
+            </div>
+            <div class="hero-stat">
+                <span class="num">200K+</span>
+                <span class="label" data-i18n="stats_downloads">تحميل</span>
+            </div>
+            <div class="hero-stat">
+                <span class="num">50+</span>
+                <span class="label" data-i18n="stats_developers">مطور</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- المحتوى -->
+<div class="container">
+    <!-- الفئات -->
+    <section id="categories-section">
+        <div class="section-header">
+            <h2 class="section-title">
+                <span class="icon">📂</span>
+                <span data-i18n="categories">الفئات</span>
+            </h2>
+        </div>
+        <div class="categories-grid" id="categories-grid">
+            <!-- سيتم ملؤها ديناميكياً -->
+        </div>
+    </section>
+
+    <!-- تطبيقات مميزة -->
+    <section style="margin-top: 48px;">
+        <div class="section-header">
+            <h2 class="section-title">
+                <span class="icon">⭐</span>
+                <span data-i18n="featured">مميز</span>
+            </h2>
+            <a class="see-all" onclick="filterByCategory('all'); document.getElementById('all-apps-section').scrollIntoView({behavior:'smooth'})" data-i18n="view_all">عرض الكل</a>
+        </div>
+        <div class="apps-grid" id="featured-apps">
+            <!-- سيتم ملؤها ديناميكياً -->
+        </div>
+    </section>
+
+    <!-- كل التطبيقات -->
+    <section id="all-apps-section" style="margin-top: 48px;">
+        <div class="section-header">
+            <h2 class="section-title">
+                <span class="icon">📱</span>
+                <span data-i18n="popular">الأكثر شيوعاً</span>
+            </h2>
+            <select onchange="setSort(this.value)" style="padding: 8px 16px; border-radius: 9999px; border: 2px solid var(--border); font-family: inherit; font-weight: 600; font-size: 14px; cursor: pointer; background: white;">
+                <option value="popular" data-i18n="most_downloaded">الأكثر تحميلاً</option>
+                <option value="rating" data-i18n="rating_high">التقييم: الأعلى أولاً</option>
+                <option value="price_low" data-i18n="price_low">السعر: الأقل أولاً</option>
+                <option value="price_high" data-i18n="price_high">السعر: الأعلى أولاً</option>
+                <option value="newest" data-i18n="newest">الأحدث</option>
+            </select>
+        </div>
+
+        <!-- شريط الفئات الأفقي -->
+        <div class="categories-scroll" id="categories-chips">
+            <!-- سيتم ملؤها ديناميكياً -->
+        </div>
+
+        <div class="apps-grid" id="all-apps">
+            <!-- سيتم ملؤها ديناميكياً -->
+        </div>
+    </section>
+</div>
+
+<!-- Footer -->
+<footer class="footer">
+    <div class="footer-content">
+        <div class="footer-section">
+            <h3>📱 متجر التطبيقات</h3>
+            <p style="color: rgba(255,255,255,0.7); line-height: 1.8;">منصة عربية لبيع وشراء التطبيقات الاحترافية. نقدم أفضل التطبيقات لأندرويد والويب والأدوات والقوالب.</p>
+        </div>
+        <div class="footer-section">
+            <h3>روابط سريعة</h3>
+            <ul>
+                <li><a onclick="document.getElementById('categories-section').scrollIntoView({behavior:'smooth'})">الفئات</a></li>
+                <li><a onclick="document.getElementById('all-apps-section').scrollIntoView({behavior:'smooth'})">كل التطبيقات</a></li>
+                <li><a onclick="openCart()">سلة التسوق</a></li>
+                <li><a onclick="openAccount()">حسابي</a></li>
+            </ul>
+        </div>
+        <div class="footer-section">
+            <h3>الفئات</h3>
+            <ul>
+                <li><a onclick="filterByCategory('android')">تطبيقات أندرويد</a></li>
+                <li><a onclick="filterByCategory('web')">تطبيقات ويب</a></li>
+                <li><a onclick="filterByCategory('tools')">أدوات وسكربتات</a></li>
+                <li><a onclick="filterByCategory('templates')">قوالب ومصادر</a></li>
+            </ul>
+        </div>
+        <div class="footer-section">
+            <h3>تواصل معنا</h3>
+            <ul>
+                <li><a>📧 support@appstore.com</a></li>
+                <li><a>💬 +1 234 567 890</a></li>
+                <li><a>🐦 تويتر</a></li>
+                <li><a>📘 فيسبوك</a></li>
+            </ul>
+        </div>
+    </div>
+    <div class="footer-bottom">
+        © 2026 متجر التطبيقات | جميع الحقوق محفوظة
+    </div>
+</footer>
+
+<!-- Modals -->
+<div id="app-modal"></div>
+<div id="cart-modal"></div>
+<div id="auth-modal"></div>
+<div id="account-modal"></div>
+<div id="upload-modal"></div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Scripts -->
+<script src="data/apps-data.js"></script>
+<script src="js/security.js"></script>
+<script src="js/store.js"></script>
+<script src="js/app-store.js"></script>
+</body>
+</html>

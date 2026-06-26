@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة الإدارة الكاملة | متجر التطبيقات</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+            background: #ccc;
+            border-radius: 9999px;
+            cursor: pointer;
+            transition: 0.3s;
+            display: inline-block;
+        }
+        .toggle-switch.active { background: var(--success); }
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            right: 3px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+        body[dir="rtl"] .toggle-switch::after { right: auto; left: 3px; }
+        body[dir="rtl"] .toggle-switch.active::after { left: 27px; right: auto; }
+        body[dir="ltr"] .toggle-switch.active::after { right: 27px; }
+        .color-input { width: 60px; height: 40px; border: none; border-radius: 8px; cursor: pointer; }
+        .tag-badge { padding: 4px 10px; background: var(--primary-light); border-radius: 9999px; font-size: 12px; color: var(--primary); font-weight: 600; display: inline-block; margin: 2px; }
+        .section-card { background: var(--bg-glass); backdrop-filter: blur(20px); border-radius: var(--radius-lg); padding: 24px; border: 1.5px solid var(--border); margin-bottom: 24px; }
+        .section-card h3 { margin-bottom: 16px; font-size: 20px; }
+        .btn-danger { background: var(--gradient-red); color: white; padding: 14px; border-radius: var(--radius-md); font-weight: 700; width: 100%; }
+        .btn-success { background: var(--gradient-green); color: white; }
+        .badge { padding: 4px 12px; border-radius: 9999px; font-size: 12px; font-weight: 700; }
+        .badge-active { background: var(--success); color: white; }
+        .badge-inactive { background: var(--error); color: white; }
+        .badge-featured { background: var(--warning); color: white; }
+        .badge-free { background: var(--success); color: white; }
+        .badge-paid { background: var(--primary); color: white; }
+        .badge-admin { background: var(--gradient-red); color: white; }
+        .badge-user { background: var(--gradient-blue); color: white; }
+    </style>
+</head>
+<body dir="rtl">
+
+<div class="admin-layout">
+    <aside class="admin-sidebar">
+        <div class="sidebar-logo">
+            <div class="icon">⚙️</div>
+            <span>الإدارة الشاملة</span>
+        </div>
+        <nav class="sidebar-nav">
+            <a class="sidebar-link active" onclick="showSection('dashboard', this)"><span class="icon">📊</span> لوحة المعلومات</a>
+            <a class="sidebar-link" onclick="showSection('apps', this)"><span class="icon">📱</span> التطبيقات</a>
+            <a class="sidebar-link" onclick="showSection('categories', this)"><span class="icon">📂</span> الفئات</a>
+            <a class="sidebar-link" onclick="showSection('coupons', this)"><span class="icon">🎫</span> الكوبونات</a>
+            <a class="sidebar-link" onclick="showSection('users', this)"><span class="icon">👥</span> المستخدمون</a>
+            <a class="sidebar-link" onclick="showSection('reviews', this)"><span class="icon">⭐</span> المراجعات</a>
+            <a class="sidebar-link" onclick="showSection('orders', this)"><span class="icon">🛒</span> الطلبات</a>
+            <a class="sidebar-link" onclick="showSection('settings', this)"><span class="icon">⚙️</span> إعدادات الموقع</a>
+            <a class="sidebar-link" onclick="showSection('security', this)"><span class="icon">🔒</span> الأمان</a>
+            <a class="sidebar-link" onclick="showSection('data', this)"><span class="icon">💾</span> البيانات</a>
+            <hr style="border:0;border-top:1px solid rgba(255,255,255,0.1);margin:16px 0;">
+            <a class="sidebar-link" onclick="window.location.href='index.html'"><span class="icon">🏠</span> المتجر</a>
+            <a class="sidebar-link" onclick="doLogout()"><span class="icon">🚪</span> خروج</a>
+        </nav>
+    </aside>
+
+    <main class="admin-main">
+        <div class="admin-header">
+            <h1 id="page-title">📊 لوحة المعلومات</h1>
+            <div style="display:flex;gap:12px;align-items:center;">
+                <span id="admin-name" style="color:var(--text-secondary);font-weight:600;"></span>
+                <button class="lang-toggle" onclick="toggleLang()"><span id="lang-label">EN</span></button>
+            </div>
+        </div>
+
+        <div id="content"></div>
+    </main>
+</div>
+
+<div id="modal-container"></div>
+<div class="toast" id="toast"></div>
+
+<script src="data/apps-data.js"></script>
+<script src="js/security.js"></script>
+<script src="js/store.js"></script>
+<script>
+// === فحص الأمان ===
+if (!Security.requireAdmin()) {
+    alert('يجب تسجيل الدخول كأدمن');
+    window.location.href = 'index.html';
+}
+
+Store.init();
+let currentLang = localStorage.getItem('lang') || 'ar';
+document.getElementById('admin-name').textContent = '👤 ' + JSON.parse(localStorage.getItem('user')).name;
+
+function t(key) {
+    const tr = {
+        ar: { total_apps:'إجمالي التطبيقات', total_sales:'المبيعات', total_revenue:'الإيرادات', total_downloads:'التحميلات',
+              add_new:'إضافة جديد', edit:'تعديل', delete:'حذف', save:'حفظ', cancel:'إلغاء', active:'مفعّل', inactive:'معطّل',
+              featured:'مميز', free:'مجاني', paid:'مدفوع', confirm_delete:'هل أنت متأكد من الحذف؟', saved:'تم الحفظ بنجاح',
+              deleted:'تم الحذف', name:'الاسم', email:'البريد', password:'كلمة المرور', role:'الدور', balance:'الرصيد',
+              price:'السعر', category:'الفئة', description:'الوصف', icon:'الأيقونة', file:'الملف', tags:'الوسوم',
+              version:'الإصدار', developer:'المطور', code:'الكود', discount:'الخصم', type:'النوع',
+              percent:'نسبة مئوية', fixed:'مبلغ ثابت', actions:'إجراءات', downloads:'التحميلات', rating:'التقييم',
+              upload_app:'رفع تطبيق', app_name:'اسم التطبيق', all_categories:'كل الفئات', no_data:'لا توجد بيانات',
+              settings_saved:'تم حفظ الإعدادات', export_data:'تصدير البيانات', import_data:'استيراد البيانات',
+              reset_data:'إعادة تعيين الكل', confirm_reset:'سيتم حذف كل البيانات! متأكد؟',
+              store_name:'اسم المتجر', support_email:'بريد الدعم', currency:'العملة', primary_color:'اللون الأساسي',
+              max_file_size:'حد حجم الملف (MB)', max_image_size:'حد حجم الصورة (MB)', allow_registration:'السماح بالتسجيل',
+              maintenance_mode:'وضع الصيانة', footer_text:'نص التذييل', announcement:'إعلان', announcement_active:'تفعيل الإعلان',
+              security_logs:'سجل الأمان', no_logs:'لا توجد سجلات', user:'المستخدم', event:'الحدث', time:'الوقت',
+              toggle_featured:'تمييز', toggle_active:'تفعيل', make_free:'جعل مجاني', make_paid:'جعل مدفوع',
+              cat_name:'اسم الفئة', cat_icon:'أيقونة الفئة', cat_color:'لون الفئة', add_app:'إضافة تطبيق',
+              add_category:'إضافة فئة', add_coupon:'إضافة كوبون', add_user:'إضافة مستخدم', edit_app:'تعديل التطبيق',
+              edit_category:'تعديل الفئة', edit_coupon:'تعديل الكوبون', edit_user:'تعديل المستخدم',
+              app_desc_ar:'الوصف عربي', app_desc_en:'الوصف إنجليزي', app_price:'السعر ($)', app_tags:'الوسوم (مفصولة بفاصلة)',
+              upload_file:'اسحب الملف أو اضغط', file_types:'APK, ZIP, RAR, JS, PY', upload_icon:'اختر أيقونة',
+              user_name:'الاسم', user_email:'البريد', user_password:'كلمة المرور', user_role:'الدور', user_balance:'الرصيد',
+              coupon_code:'كود الكوبون', coupon_discount:'الخصم', coupon_type:'النوع', coupon_desc_ar:'الوصف عربي',
+              app_details:'تفاصيل التطبيق', reviews_count:'عدد المراجعات', export_success:'تم التصدير', import_success:'تم الاستيراد'
+        },
+        en: { total_apps:'Total Apps', total_sales:'Sales', total_revenue:'Revenue', total_downloads:'Downloads',
+              add_new:'Add New', edit:'Edit', delete:'Delete', save:'Save', cancel:'Cancel', active:'Active', inactive:'Inactive',
+              featured:'Featured', free:'Free', paid:'Paid', confirm_delete:'Confirm delete?', saved:'Saved successfully',
+              deleted:'Deleted', name:'Name', email:'Email', password:'Password', role:'Role', balance:'Balance',
+              price:'Price', category:'Category', description:'Description', icon:'Icon', file:'File', tags:'Tags',
+              version:'Version', developer:'Developer', code:'Code', discount:'Discount', type:'Type',
+              percent:'Percentage', fixed:'Fixed', actions:'Actions', downloads:'Downloads', rating:'Rating',
+              upload_app:'Upload App', app_name:'App Name', all_categories:'All Categories', no_data:'No data',
+              settings_saved:'Settings saved', export_data:'Export Data', import_data:'Import Data',
+              reset_data:'Reset All', confirm_reset:'Delete ALL data! Sure?',
+              store_name:'Store Name', support_email:'Support Email', currency:'Currency', primary_color:'Primary Color',
+              max_file_size:'Max File Size (MB)', max_image_size:'Max Image Size (MB)', allow_registration:'Allow Registration',
+              maintenance_mode:'Maintenance Mode', footer_text:'Footer Text', announcement:'Announcement', announcement_active:'Active Announcement',
+              security_logs:'Security Logs', no_logs:'No logs', user:'User', event:'Event', time:'Time',
+              toggle_featured:'Feature', toggle_active:'Toggle', make_free:'Make Free', make_paid:'Make Paid',
+              cat_name:'Category Name', cat_icon:'Icon', cat_color:'Color', add_app:'Add App',
+              add_category:'Add Category', add_coupon:'Add Coupon', add_user:'Add User', edit_app:'Edit App',
+              edit_category:'Edit Category', edit_coupon:'Edit Coupon', edit_user:'Edit User',
+              app_desc_ar:'Description (Arabic)', app_desc_en:'Description (English)', app_price:'Price ($)', app_tags:'Tags (comma)',
+              upload_file:'Drag file or click', file_types:'APK, ZIP, RAR, JS, PY', upload_icon:'Select icon',
+              user_name:'Name', user_email:'Email', user_password:'Password', user_role:'Role', user_balance:'Balance',
+              coupon_code:'Coupon Code', coupon_discount:'Discount', coupon_type:'Type', coupon_desc_ar:'Description',
+              app_details:'App Details', reviews_count:'Reviews Count', export_success:'Exported', import_success:'Imported'
+        }
+    };
+    return tr[currentLang][key] || key;
+}
+
+function showToast(msg, type = 'info') {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.className = 'toast ' + type + ' show';
+    setTimeout(() => { toast.className = 'toast'; }, 3000);
+}
+
+function formatNumber(n) {
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+    return String(n);
+}
+
+function toggleLang() {
+    currentLang = currentLang === 'ar' ? 'en' : 'ar';
+    localStorage.setItem('lang', currentLang);
+    document.body.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+    document.getElementById('lang-label').textContent = currentLang === 'ar' ? 'EN' : 'ع';
+    showSection(currentSection, null);
+}
+
+function doLogout() {
+    Security.clearSession();
+    window.location.href = 'index.html';
+}
+
+// === التنقل بين الأقسام ===
+let currentSection = 'dashboard';
+
+function showSection(section, link) {
+    if (!Security.requireAdmin()) { doLogout(); return; }
+    currentSection = section;
+    document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+    if (link) link.classList.add('active');
+
+    const titles = {
+        dashboard: '📊 لوحة المعلومات', apps: '📱 إدارة التطبيقات', categories: '📂 إدارة الفئات',
+        coupons: '🎫 إدارة الكوبونات', users: '👥 إدارة المستخدمين', reviews: '⭐ المراجعات',
+        orders: '🛒 الطلبات', settings: '⚙️ إعدادات الموقع', security: '🔒 الأمان', data: '💾 البيانات'
+    };
+    document.getElementById('page-title').textContent = titles[section] || '';
+
+    const renderers = {
+        dashboard: renderDashboard, apps: renderApps, categories: renderCategories,
+        coupons: renderCoupons, users: renderUsers, reviews: renderReviews,
+        orders: renderOrders, settings: renderSettings, security: renderSecurity, data: renderData
+    };
+    renderers[section]();
+}
+
+// === 1. لوحة المعلومات ===
+function renderDashboard() {
+    const apps = Store.loadApps();
+    const settings = Store.loadSettings();
+    const purchased = JSON.parse(localStorage.getItem('purchased') || '[]');
+    const revenue = purchased.reduce((sum, id) => {
+        const app = apps.find(a => a.id === id);
+        return sum + (app ? app.price : 0);
+    }, 0);
+    const totalDl = apps.reduce((s, a) => s + (a.downloads || 0), 0);
+    const currency = settings.currencySymbol || '$';
+
+    document.getElementById('content').innerHTML = `
+        <div class="admin-stats">
+            <div class="stat-card"><div class="stat-icon">📱</div><div class="stat-value">${apps.length}</div><div class="stat-label">${t('total_apps')}</div></div>
+            <div class="stat-card"><div class="stat-icon">💰</div><div class="stat-value">${purchased.length}</div><div class="stat-label">${t('total_sales')}</div></div>
+            <div class="stat-card"><div class="stat-icon">💵</div><div class="stat-value">${currency}${revenue.toFixed(2)}</div><div class="stat-label">${t('total_revenue')}</div></div>
+            <div class="stat-card"><div class="stat-icon">⬇️</div><div class="stat-value">${formatNumber(totalDl)}</div><div class="stat-label">${t('total_downloads')}</div></div>
+        </div>
+        <div class="admin-table">
+            <table><thead><tr><th>📱 التطبيق</th><th>📂 الفئة</th><th>💰 السعر</th><th>⬇️ تحميلات</th><th>⭐ تقييم</th><th>📅 تاريخ</th></tr></thead>
+            <tbody>${apps.sort((a,b)=>(b.downloads||0)-(a.downloads||0)).slice(0,15).map(a=>`
+                <tr>
+                    <td><strong>${a.icon||'📱'} ${Security.escapeHtml(a.name)}</strong></td>
+                    <td>${getCatName(a.category)}</td>
+                    <td>${a.price===0?'<span class="badge badge-free">مجاني</span>':'<span class="badge badge-paid">'+currency+a.price.toFixed(2)+'</span>'}</td>
+                    <td>${formatNumber(a.downloads||0)}</td>
+                    <td>${a.rating||'NEW'} ⭐</td>
+                    <td>${a.updated||'-'}</td>
+                </tr>
+            `).join('')}</tbody></table>
+        </div>
+    `;
+}
+
+function getCatName(id) {
+    const cat = Store.loadCategories().find(c => c.id === id);
+    return cat ? (currentLang === 'ar' ? cat.name_ar : cat.name_en) : '-';
+}
+
+// === 2. إدارة التطبيقات ===
+function renderApps() {
+    const apps = Store.loadApps();
+    const settings = Store.loadSettings();
+    const currency = settings.currencySymbol || '$';
+    document.getElementById('content').innerHTML = `
+        <div style="margin-bottom:24px;display:flex;gap:12px;flex-wrap:wrap;">
+            <button class="btn-primary" style="width:auto;padding:14px 28px;" onclick="openAppEditor()">➕ ${t('add_app')}</button>
+        </div>
+        <div class="admin-table">
+            <table><thead><tr>
+                <th>📱 التطبيق</th><th>📂 الفئة</th><th>💰 السعر</th><th>⬇️ تحميلات</th>
+                <th>✅ الحالة</th><th>⭐ مميز</th><th>⚙️ ${t('actions')}</th>
+            </tr></thead><tbody>
+            ${apps.map(a => {
+                const isOrig = APPS.some(o => o.id === a.id);
+                return `
+                <tr>
+                    <td>
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            ${a.iconData ? `<img src="${a.iconData}" style="width:40px;height:40px;border-radius:8px;object-fit:cover;">` : `<div style="width:40px;height:40px;background:var(--gradient-primary);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;">${a.icon||'📱'}</div>`}
+                            <div><div style="font-weight:700;">${Security.escapeHtml(a.name)}</div>
+                            <div style="font-size:11px;color:var(--text-secondary);">${Security.escapeHtml(a.developer||'')} ${isOrig?'(أصلي)':'(مخصص)'}</div></div>
+                        </div>
+                    </td>
+                    <td>${getCatName(a.category)}</td>
+                    <td>${a.price===0?'<span class="badge badge-free">مجاني</span>':'<span class="badge badge-paid">'+currency+a.price.toFixed(2)+'</span>'}</td>
+                    <td>${formatNumber(a.downloads||0)}</td>
+                    <td><span class="badge ${a.active===false?'badge-inactive':'badge-active'}">${a.active===false?t('inactive'):t('active')}</span></td>
+                    <td>${a.featured?'<span class="badge badge-featured">⭐</span>':'-'}</td>
+                    <td style="white-space:nowrap;">
+                        <button class="action-btn edit" onclick="openAppEditor(${a.id})">✏️</button>
+                        <button class="action-btn" style="background:var(--warning);color:white;" onclick="toggleFeatured(${a.id})">⭐</button>
+                        <button class="action-btn" style="background:var(--info);color:white;" onclick="toggleActive(${a.id})">${a.active===false?'✅':'⏸️'}</button>
+                        <button class="action-btn" style="background:${a.price===0?'var(--primary)':'var(--success)'};color:white;" onclick="togglePrice(${a.id})">${a.price===0?'💰':'🆓'}</button>
+                        <button class="action-btn delete" onclick="deleteAppConfirm(${a.id})">🗑️</button>
+                    </td>
+                </tr>`;
+            }).join('')}
+            </tbody></table>
+        </div>
+    `;
+}
+
+function toggleFeatured(id) {
+    const apps = Store.loadApps();
+    const app = apps.find(a => a.id === id);
+    if (app) { app.featured = !app.featured; Store.saveApp(app); showToast(t('saved'),'success'); renderApps(); }
+}
+
+function toggleActive(id) {
+    const apps = Store.loadApps();
+    const app = apps.find(a => a.id === id);
+    if (app) { app.active = app.active === false ? true : false; Store.saveApp(app); showToast(t('saved'),'success'); renderApps(); }
+}
+
+function togglePrice(id) {
+    const apps = Store.loadApps();
+    const app = apps.find(a => a.id === id);
+    if (app) {
+        if (app.price === 0) {
+            const newPrice = prompt(currentLang==='ar'?'أدخل السعر بالدولار:':'Enter price ($):', '9.99');
+            if (newPrice !== null && Security.validatePrice(newPrice)) {
+                app.price = parseFloat(newPrice);
+                Store.saveApp(app); showToast(t('saved'),'success');
+            }
+        } else {
+            app.price = 0;
+            Store.saveApp(app); showToast(t('saved'),'success');
+        }
+        renderApps();
+    }
+}
+
+function deleteAppConfirm(id) {
+    if (!confirm(t('confirm_delete'))) return;
+    Store.deleteApp(id);
+    showToast(t('deleted'),'success');
+    renderApps();
+}
+
+// === محرر التطبيق ===
+let uploadedFileData = null, uploadedIconData = null;
+
+function openAppEditor(id) {
+    const apps = Store.loadApps();
+    const cats = Store.loadCategories();
+    const app = id ? apps.find(a => a.id === id) : null;
+    uploadedFileData = null;
+    uploadedIconData = null;
+
+    document.getElementById('modal-container').innerHTML = `
+        <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+            <div class="modal" style="max-width:700px;max-height:90vh;overflow-y:auto;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+                    <h2>${app?'✏️ '+t('edit_app'):'➕ '+t('add_app')}</h2>
+                    <button onclick="closeModal()" style="font-size:24px;">✕</button>
+                </div>
+                <form onsubmit="saveAppForm(event, ${id||'null'})">
+                    <div class="form-row">
+                        <div class="form-group"><label>${t('app_name')} *</label>
+                        <input type="text" id="f-name" required value="${app?Security.escapeHtml(app.name):''}"></div>
+                        <div class="form-group"><label>${t('developer')}</label>
+                        <input type="text" id="f-dev" value="${app?Security.escapeHtml(app.developer||''):''}"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>${t('category')} *</label>
+                        <select id="f-cat" required>
+                            ${cats.map(c=>`<option value="${c.id}" ${app&&app.category===c.id?'selected':''}>${c.icon} ${currentLang==='ar'?c.name_ar:c.name_en}</option>`).join('')}
+                        </select></div>
+                        <div class="form-group"><label>${t('app_price')} ($)</label>
+                        <input type="number" id="f-price" min="0" step="0.01" value="${app?app.price:0}"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>${t('version')}</label>
+                        <input type="text" id="f-ver" value="${app?app.version||'1.0.0':'1.0.0'}"></div>
+                        <div class="form-group"><label>${t('app_tags')}</label>
+                        <input type="text" id="f-tags" value="${app&&app.tags?app.tags.join(', '):''}"></div>
+                    </div>
+                    <div class="form-group"><label>${t('app_desc_ar')} *</label>
+                    <textarea id="f-desc-ar" required>${app?Security.escapeHtml(app.desc_ar||''):''}</textarea></div>
+                    <div class="form-group"><label>${t('app_desc_en')}</label>
+                    <textarea id="f-desc-en">${app?Security.escapeHtml(app.desc_en||''):''}</textarea></div>
+                    <div class="form-row">
+                        <div class="form-group"><label>${t('rating')} (0-5)</label>
+                        <input type="number" id="f-rating" min="0" max="5" step="0.1" value="${app?app.rating||0:0}"></div>
+                        <div class="form-group" style="display:flex;align-items:end;gap:16px;">
+                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                                <div class="toggle-switch ${app&&app.featured?'active':''}" id="toggle-featured" onclick="this.classList.toggle('active')"></div>
+                                ${t('featured')}
+                            </label>
+                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                                <div class="toggle-switch ${!app||app.active!==false?'active':''}" id="toggle-active" onclick="this.classList.toggle('active')"></div>
+                                ${t('active')}
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>${t('icon')}</label>
+                        <div style="display:flex;gap:16px;align-items:center;">
+                            <img id="icon-preview" class="image-preview ${app&&app.iconData?'active':''}" src="${app&&app.iconData?app.iconData:''}">
+                            <input type="file" accept="image/*" onchange="handleIcon(event)" style="flex:1;padding:10px;border:1.5px dashed var(--border);border-radius:12px;">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>${t('file')}</label>
+                        <div class="upload-zone" onclick="document.getElementById('f-file').click()" id="upload-zone">
+                            <div class="upload-icon">📁</div><div class="upload-text">${t('upload_file')}</div>
+                            <div class="upload-hint">${t('file_types')}</div>
+                        </div>
+                        <input type="file" id="f-file" style="display:none;" onchange="handleFile(event)">
+                        <div class="file-preview" id="file-preview" style="${app&&app.fileName?'display:block':''}">
+                            <div class="preview-header">
+                                <span class="preview-icon">📄</span>
+                                <div class="preview-info">
+                                    <div class="preview-name">${app&&app.fileName?Security.escapeHtml(app.fileName):''}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:12px;margin-top:24px;">
+                        <button type="button" class="btn-secondary" onclick="closeModal()">${t('cancel')}</button>
+                        <button type="submit" class="btn-primary">💾 ${t('save')}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+}
+
+function handleIcon(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const errors = Security.validateUpload(file, 'image');
+    if (errors.length > 0) { showToast(errors[0], 'error'); return; }
+    const reader = new FileReader();
+    reader.onload = ev => {
+        uploadedIconData = ev.target.result;
+        const prev = document.getElementById('icon-preview');
+        prev.src = uploadedIconData;
+        prev.classList.add('active');
+    };
+    reader.readAsDataURL(file);
+}
+
+function handleFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const errors = Security.validateUpload(file, 'file');
+    if (errors.length > 0) { showToast(errors[0], 'error'); return; }
+    const reader = new FileReader();
+    reader.onload = ev => {
+        uploadedFileData = ev.target.result;
+        document.getElementById('file-preview').style.display = 'block';
+        document.querySelector('#file-preview .preview-name').textContent = file.name;
+    };
+    reader.readAsDataURL(file);
+}
+
+function saveAppForm(e, id) {
+    e.preventDefault();
+    const name = Security.sanitize(document.getElementById('f-name').value);
+    if (!Security.validateName(name)) { showToast(currentLang==='ar'?'اسم غير صالح':'Invalid name','error'); return; }
+
+    const price = parseFloat(document.getElementById('f-price').value);
+    if (!Security.validatePrice(price)) { showToast(currentLang==='ar'?'سعر غير صالح':'Invalid price','error'); return; }
+
+    const apps = Store.loadApps();
+    const existing = id ? apps.find(a => a.id === id) : null;
+
+    const appData = {
+        id: id || Date.now(),
+        name: name,
+        developer: Security.sanitize(document.getElementById('f-dev').value),
+        category: document.getElementById('f-cat').value,
+        price: price,
+        version: Security.sanitize(document.getElementById('f-ver').value),
+        tags: document.getElementById('f-tags').value.split(',').map(t=>Security.sanitize(t.trim())).filter(Boolean),
+        desc_ar: Security.sanitize(document.getElementById('f-desc-ar').value),
+        desc_en: Security.sanitize(document.getElementById('f-desc-en').value),
+        rating: parseFloat(document.getElementById('f-rating').value) || 0,
+        featured: document.getElementById('toggle-featured').classList.contains('active'),
+        active: document.getElementById('toggle-active').classList.contains('active'),
+        icon: existing ? existing.icon : '📱',
+        iconData: uploadedIconData || (existing ? existing.iconData : null),
+        fileData: uploadedFileData || (existing ? existing.fileData : null),
+        fileName: uploadedFileData ? document.querySelector('#file-preview .preview-name').textContent : (existing ? existing.fileName : null),
+        downloads: existing ? existing.downloads : 0,
+        size: existing ? existing.size : 'N/A',
+        updated: new Date().toISOString().split('T')[0]
+    };
+
+    Store.saveApp(appData);
+    closeModal();
+    showToast(t('saved'), 'success');
+    renderApps();
+}
+
+function closeModal() { document.getElementById('modal-container').innerHTML = ''; }
+
+// === 3. إدارة الفئات ===
+function renderCategories() {
+    const cats = Store.loadCategories();
+    const apps = Store.loadApps();
+    document.getElementById('content').innerHTML = `
+        <div style="margin-bottom:24px;">
+            <button class="btn-primary" style="width:auto;padding:14px 28px;" onclick="openCatEditor()">➕ ${t('add_category')}</button>
+        </div>
+        <div class="admin-table">
+            <table><thead><tr><th>🎨 الأيقونة</th><th>${t('name')} (عربي)</th><th>Name (EN)</th><th>📦 التطبيقات</th><th>🎨 اللون</th><th>⚙️ ${t('actions')}</th></tr></thead>
+            <tbody>${cats.map(c => {
+                const count = apps.filter(a => a.category === c.id).length;
+                return `<tr>
+                    <td style="font-size:32px;">${c.icon}</td>
+                    <td>${Security.escapeHtml(c.name_ar)}</td>
+                    <td>${Security.escapeHtml(c.name_en)}</td>
+                    <td>${count}</td>
+                    <td><div style="width:30px;height:30px;border-radius:8px;background:${c.color};display:inline-block;"></div> ${c.color}</td>
+                    <td>
+                        <button class="action-btn edit" onclick="openCatEditor('${c.id}')">✏️</button>
+                        <button class="action-btn delete" onclick="deleteCatConfirm('${c.id}')">🗑️</button>
+                    </td>
+                </tr>`;
+            }).join('')}</tbody></table>
+        </div>
+    `;
+}
+
+function openCatEditor(id) {
+    const cats = Store.loadCategories();
+    const cat = id ? cats.find(c => c.id === id) : null;
+    document.getElementById('modal-container').innerHTML = `
+        <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+            <div class="modal">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+                    <h2>${cat?'✏️ '+t('edit_category'):'➕ '+t('add_category')}</h2>
+                    <button onclick="closeModal()" style="font-size:24px;">✕</button>
+                </div>
+                <form onsubmit="saveCatForm(event, '${id||''}')">
+                    <div class="form-row">
+                        <div class="form-group"><label>${t('cat_name')} (عربي) *</label>
+                        <input type="text" id="c-name-ar" required value="${cat?Security.escapeHtml(cat.name_ar):''}"></div>
+                        <div class="form-group"><label>Name (English) *</label>
+                        <input type="text" id="c-name-en" required value="${cat?Security.escapeHtml(cat.name_en):''}"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>${t('cat_icon')} (إيموجي)</label>
+                        <input type="text" id="c-icon" value="${cat?cat.icon:'📱'}" style="font-size:24px;text-align:center;"></div>
+                        <div class="form-group"><label>${t('cat_color')}</label>
+                        <input type="color" id="c-color" value="${cat?cat.color:'#6750A4'}" class="color-input" style="width:100%;height:44px;"></div>
+                    </div>
+                    <div style="display:flex;gap:12px;margin-top:24px;">
+                        <button type="button" class="btn-secondary" onclick="closeModal()">${t('cancel')}</button>
+                        <button type="submit" class="btn-primary">💾 ${t('save')}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+}
+
+function saveCatForm(e, id) {
+    e.preventDefault();
+    const catData = {
+        id: id || 'cat_' + Date.now(),
+        name_ar: Security.sanitize(document.getElementById('c-name-ar').value),
+        name_en: Security.sanitize(document.getElementById('c-name-en').value),
+        icon: Security.sanitize(document.getElementById('c-icon').value) || '📱',
+        color: document.getElementById('c-color').value
+    };
+    Store.saveCategory(catData);
+    closeModal();
+    showToast(t('saved'),'success');
+    renderCategories();
+}
+
+function deleteCatConfirm(id) {
+    if (!confirm(t('confirm_delete'))) return;
+    Store.deleteCategory(id);
+    showToast(t('deleted'),'success');
+    renderCategories();
+}
+
+// === 4. إدارة الكوبونات ===
+function renderCoupons() {
+    const coupons = Store.loadCoupons();
+    document.getElementById('content').innerHTML = `
+        <div style="margin-bottom:24px;">
+            <button class="btn-primary" style="width:auto;padding:14px 28px;" onclick="openCouponEditor()">➕ ${t('add_coupon')}</button>
+        </div>
+        <div class="admin-table">
+            <table><thead><tr><th>${t('code')}</th><th>${t('discount')}</th><th>${t('type')}</th><th>${t('description')}</th><th>⚙️ ${t('actions')}</th></tr></thead>
+            <tbody>${Object.entries(coupons).map(([code, c]) => `
+                <tr>
+                    <td><strong style="font-family:monospace;font-size:16px;color:var(--primary);">${Security.escapeHtml(code)}</strong></td>
+                    <td>${c.discount}${c.type==='percent'?'%':'$'}</td>
+                    <td>${c.type==='percent'?'<span class="badge badge-paid">نسبة</span>':'<span class="badge badge-free">ثابت</span>'}</td>
+                    <td>${Security.escapeHtml(c.desc_ar||'')}</td>
+                    <td>
+                        <button class="action-btn edit" onclick="openCouponEditor('${code}')">✏️</button>
+                        <button class="action-btn delete" onclick="deleteCouponConfirm('${code}')">🗑️</button>
+                    </td>
+                </tr>
+            `).join('')}</tbody></table>
+        </div>
+    `;
+}
+
+function openCouponEditor(code) {
+    const coupons = Store.loadCoupons();
+    const c = code ? coupons[code] : null;
+    document.getElementById('modal-container').innerHTML = `
+        <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+            <div class="modal">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+                    <h2>${c?'✏️ '+t('edit_coupon'):'➕ '+t('add_coupon')}</h2>
+                    <button onclick="closeModal()" style="font-size:24px;">✕</button>
+                </div>
+                <form onsubmit="saveCouponForm(event, '${code||''}')">
+                    <div class="form-group"><label>${t('coupon_code')} *</label>
+                    <input type="text" id="cp-code" required value="${code||''}" style="font-family:monospace;text-transform:uppercase;" ${code?'readonly':''}></div>
+                    <div class="form-row">
+                        <div class="form-group"><label>${t('coupon_discount')}</label>
+                        <input type="number" id="cp-discount" min="1" value="${c?c.discount:10}"></div>
+                        <div class="form-group"><label>${t('coupon_type')}</label>
+                        <select id="cp-type"><option value="percent" ${c&&c.type==='percent'?'selected':''}>${t('percent')}</option><option value="fixed" ${c&&c.type==='fixed'?'selected':''}>${t('fixed')}</option></select></div>
+                    </div>
+                    <div class="form-group"><label>${t('coupon_desc_ar')}</label>
+                    <input type="text" id="cp-desc" value="${c?Security.escapeHtml(c.desc_ar||''):''}"></div>
+                    <div style="display:flex;gap:12px;margin-top:24px;">
+                        <button type="button" class="btn-secondary" onclick="closeModal()">${t('cancel')}</button>
+                        <button type="submit" class="btn-primary">💾 ${t('save')}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+}
+
+function saveCouponForm(e, oldCode) {
+    e.preventDefault();
+    const code = document.getElementById('cp-code').value.toUpperCase().trim();
+    if (!code) { showToast('كود غير صالح','error'); return; }
+    const discount = parseFloat(document.getElementById('cp-discount').value);
+    if (isNaN(discount) || discount <= 0) { showToast('خصم غير صالح','error'); return; }
+    const couponData = {
+        discount: discount,
+        type: document.getElementById('cp-type').value,
+        desc_ar: Security.sanitize(document.getElementById('cp-desc').value),
+        desc_en: Security.sanitize(document.getElementById('cp-desc').value)
+    };
+    if (oldCode && oldCode !== code) Store.deleteCoupon(oldCode);
+    Store.saveCoupon(code, couponData);
+    closeModal();
+    showToast(t('saved'),'success');
+    renderCoupons();
+}
+
+function deleteCouponConfirm(code) {
+    if (!confirm(t('confirm_delete'))) return;
+    Store.deleteCoupon(code);
+    showToast(t('deleted'),'success');
+    renderCoupons();
+}
+
+// === 5. إدارة المستخدمين ===
+function renderUsers() {
+    const users = Store.loadUsers();
+    document.getElementById('content').innerHTML = `
+        <div style="margin-bottom:24px;">
+            <button class="btn-primary" style="width:auto;padding:14px 28px;" onclick="openUserEditor()">➕ ${t('add_user')}</button>
+        </div>
+        <div class="admin-table">
+            <table><thead><tr><th>${t('name')}</th><th>${t('email')}</th><th>${t('role')}</th><th>${t('balance')}</th><th>⚙️ ${t('actions')}</th></tr></thead>
+            <tbody>${Object.entries(users).map(([email, u]) => `
+                <tr>
+                    <td><strong>${Security.escapeHtml(u.name)}</strong></td>
+                    <td>${Security.escapeHtml(email)}</td>
+                    <td><span class="badge ${u.role==='admin'?'badge-admin':'badge-user'}">${u.role==='admin'?'أدمن':'مستخدم'}</span></td>
+                    <td>$${u.balance||0}</td>
+                    <td>
+                        <button class="action-btn edit" onclick="openUserEditor('${email}')">✏️</button>
+                        <button class="action-btn delete" onclick="deleteUserConfirm('${email}')">🗑️</button>
+                    </td>
+                </tr>
+            `).join('')}</tbody></table>
+        </div>
+    `;
+}
+
+function openUserEditor(email) {
+    const users = Store.loadUsers();
+    const u = email ? users[email] : null;
+    document.getElementById('modal-container').innerHTML = `
+        <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+            <div class="modal">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+                    <h2>${u?'✏️ '+t('edit_user'):'➕ '+t('add_user')}</h2>
+                    <button onclick="closeModal()" style="font-size:24px;">✕</button>
+                </div>
+                <form onsubmit="saveUserForm(event, '${email||''}')">
+                    <div class="form-group"><label>${t('user_name')} *</label>
+                    <input type="text" id="u-name" required value="${u?Security.escapeHtml(u.name):''}"></div>
+                    <div class="form-group"><label>${t('user_email')} *</label>
+                    <input type="email" id="u-email" required value="${email||''}" ${email?'readonly':''}></div>
+                    <div class="form-row">
+                        <div class="form-group"><label>${t('user_password')} ${email?'(اترك فارغ للإبقاء)':''}</label>
+                        <input type="password" id="u-pass" ${email?'':'required'}></div>
+                        <div class="form-group"><label>${t('user_role')}</label>
+                        <select id="u-role"><option value="user" ${u&&u.role==='user'?'selected':''}>مستخدم</option><option value="admin" ${u&&u.role==='admin'?'selected':''}>أدمن</option></select></div>
+                    </div>
+                    <div class="form-group"><label>${t('user_balance')} ($)</label>
+                    <input type="number" id="u-balance" min="0" step="0.01" value="${u?u.balance||0:0}"></div>
+                    <div style="display:flex;gap:12px;margin-top:24px;">
+                        <button type="button" class="btn-secondary" onclick="closeModal()">${t('cancel')}</button>
+                        <button type="submit" class="btn-primary">💾 ${t('save')}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+}
+
+function saveUserForm(e, oldEmail) {
+    e.preventDefault();
+    const name = Security.sanitize(document.getElementById('u-name').value);
+    const email = document.getElementById('u-email').value;
+    if (!Security.validateEmail(email)) { showToast('بريد غير صالح','error'); return; }
+    const pass = document.getElementById('u-pass').value;
+    const role = document.getElementById('u-role').value;
+    const balance = parseFloat(document.getElementById('u-balance').value) || 0;
+
+    const users = Store.loadUsers();
+    const existing = oldEmail ? users[oldEmail] : null;
+
+    const userData = {
+        name: name,
+        password: pass ? pass : (existing ? existing.password : '123456'),
+        role: role,
+        balance: balance
+    };
+
+    if (oldEmail && oldEmail !== email) Store.deleteUser(oldEmail);
+    Store.saveUser(email, userData);
+    closeModal();
+    showToast(t('saved'),'success');
+    renderUsers();
+}
+
+function deleteUserConfirm(email) {
+    if (!confirm(t('confirm_delete'))) return;
+    Store.deleteUser(email);
+    showToast(t('deleted'),'success');
+    renderUsers();
+}
+
+// === 6. المراجعات ===
+function renderReviews() {
+    let allReviews = [];
+    const apps = Store.loadApps();
+    for (const [appId, reviews] of Object.entries(REVIEWS)) {
+        const app = apps.find(a => a.id == appId);
+        if (app) {
+            reviews.forEach(r => allReviews.push({ ...r, appId: parseInt(appId), appName: app.name, appIcon: app.icon }));
+        }
+    }
+    document.getElementById('content').innerHTML = `
+        <div class="admin-table">
+            <table><thead><tr><th>📱 التطبيق</th><th>👤 المستخدم</th><th>⭐ التقييم</th><th>💬 التعليق</th><th>📅 التاريخ</th><th>⚙️</th></tr></thead>
+            <tbody>${allReviews.length > 0 ? allReviews.map((r, i) => `
+                <tr>
+                    <td>${r.appIcon||'📱'} ${Security.escapeHtml(r.appName)}</td>
+                    <td>${Security.escapeHtml(r.user)}</td>
+                    <td>${'⭐'.repeat(r.rating)}</td>
+                    <td>${Security.escapeHtml(r.comment)}</td>
+                    <td>${r.date}</td>
+                    <td><button class="action-btn delete" onclick="deleteReview(${r.appId}, ${i})">🗑️</button></td>
+                </tr>
+            `).join('') : `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-secondary);">${t('no_data')}</td></tr>`}</tbody></table>
+        </div>
+    `;
+}
+
+function deleteReview(appId, index) {
+    if (REVIEWS[appId]) {
+        REVIEWS[appId].splice(index, 1);
+        showToast(t('deleted'),'success');
+        renderReviews();
+    }
+}
+
+// === 7. الطلبات ===
+function renderOrders() {
+    const purchased = JSON.parse(localStorage.getItem('purchased') || '[]');
+    const apps = Store.loadApps();
+    document.getElementById('content').innerHTML = `
+        <div class="admin-table">
+            <table><thead><tr><th>🆔 رقم</th><th>📱 التطبيق</th><th>💰 السعر</th><th>📅 التاريخ</th></tr></thead>
+            <tbody>${purchased.length > 0 ? purchased.map((id, i) => {
+                const app = apps.find(a => a.id === id);
+                return `<tr>
+                    <td>#${i+1}</td>
+                    <td>${app?(app.icon||'📱')+' '+Security.escapeHtml(app.name):'محذوف'}</td>
+                    <td>${app?(app.price===0?'مجاني':'$'+app.price.toFixed(2)):'-'}</td>
+                    <td>-</td>
+                </tr>`;
+            }).join('') : `<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-secondary);">${t('no_data')}</td></tr>`}</tbody></table>
+        </div>
+    `;
+}
+
+// === 8. إعدادات الموقع ===
+function renderSettings() {
+    const s = Store.loadSettings();
+    document.getElementById('content').innerHTML = `
+        <div class="section-card">
+            <h3>📋 معلومات المتجر</h3>
+            <div class="form-row">
+                <div class="form-group"><label>${t('store_name')} (عربي)</label>
+                <input type="text" id="s-name-ar" value="${Security.escapeHtml(s.storeName)}"></div>
+                <div class="form-group"><label>${t('store_name')} (EN)</label>
+                <input type="text" id="s-name-en" value="${Security.escapeHtml(s.storeNameEn)}"></div>
+            </div>
+            <div class="form-group"><label>${t('support_email')}</label>
+            <input type="email" id="s-email" value="${Security.escapeHtml(s.supportEmail)}"></div>
+            <div class="form-row">
+                <div class="form-group"><label>${t('currency')}</label>
+                <select id="s-currency">
+                    <option value="USD" ${s.currency==='USD'?'selected':''}>USD ($)</option>
+                    <option value="EUR" ${s.currency==='EUR'?'selected':''}>EUR (€)</option>
+                    <option value="SAR" ${s.currency==='SAR'?'selected':''}>SAR (ر.س)</option>
+                    <option value="EGP" ${s.currency==='EGP'?'selected':''}>EGP (ج.م)</option>
+                    <option value="AED" ${s.currency==='AED'?'selected':''}>AED (د.إ)</option>
+                </select></div>
+                <div class="form-group"><label>${t('primary_color')}</label>
+                <input type="color" id="s-color" value="${s.primaryColor}" class="color-input" style="width:100%;height:44px;"></div>
+            </div>
+        </div>
+
+        <div class="section-card">
+            <h3>📤 إعدادات الرفع</h3>
+            <div class="form-row">
+                <div class="form-group"><label>${t('max_file_size')}</label>
+                <input type="number" id="s-maxfile" min="1" value="${s.maxFileSize}"></div>
+                <div class="form-group"><label>${t('max_image_size')}</label>
+                <input type="number" id="s-maximg" min="1" value="${s.maxImageSize}"></div>
+            </div>
+        </div>
+
+        <div class="section-card">
+            <h3>⚙️ الإعدادات العامة</h3>
+            <div style="display:flex;flex-direction:column;gap:16px;">
+                <label style="display:flex;align-items:center;gap:12px;cursor:pointer;">
+                    <div class="toggle-switch ${s.allowRegistration?'active':''}" id="s-register" onclick="this.classList.toggle('active')"></div>
+                    ${t('allow_registration')}
+                </label>
+                <label style="display:flex;align-items:center;gap:12px;cursor:pointer;">
+                    <div class="toggle-switch ${s.maintenanceMode?'active':''}" id="s-maintenance" onclick="this.classList.toggle('active')"></div>
+                    ${t('maintenance_mode')}
+                </label>
+            </div>
+        </div>
+
+        <div class="section-card">
+            <h3>📢 الإعلان</h3>
+            <div class="form-group"><label>${t('announcement')}</label>
+            <textarea id="s-announce" placeholder="نص الإعلان...">${Security.escapeHtml(s.announcement||'')}</textarea></div>
+            <label style="display:flex;align-items:center;gap:12px;cursor:pointer;margin-top:12px;">
+                <div class="toggle-switch ${s.announcementActive?'active':''}" id="s-announce-active" onclick="this.classList.toggle('active')"></div>
+                ${t('announcement_active')}
+            </label>
+        </div>
+
+        <div class="section-card">
+            <h3>📝 التذييل</h3>
+            <div class="form-group"><label>${t('footer_text')}</label>
+            <input type="text" id="s-footer" value="${Security.escapeHtml(s.footerText)}"></div>
+        </div>
+
+        <button class="btn-primary" style="margin-top:24px;" onclick="saveSettingsForm()">💾 ${t('save')} الإعدادات</button>
+    `;
+}
+
+function saveSettingsForm() {
+    const settings = {
+        storeName: Security.sanitize(document.getElementById('s-name-ar').value),
+        storeNameEn: Security.sanitize(document.getElementById('s-name-en').value),
+        supportEmail: document.getElementById('s-email').value,
+        currency: document.getElementById('s-currency').value,
+        currencySymbol: { USD:'$', EUR:'€', SAR:'ر.س', EGP:'ج.م', AED:'د.إ' }[document.getElementById('s-currency').value] || '$',
+        primaryColor: document.getElementById('s-color').value,
+        maxFileSize: parseInt(document.getElementById('s-maxfile').value) || 50,
+        maxImageSize: parseInt(document.getElementById('s-maximg').value) || 2,
+        allowRegistration: document.getElementById('s-register').classList.contains('active'),
+        maintenanceMode: document.getElementById('s-maintenance').classList.contains('active'),
+        announcement: Security.sanitize(document.getElementById('s-announce').value),
+        announcementActive: document.getElementById('s-announce-active').classList.contains('active'),
+        footerText: Security.sanitize(document.getElementById('s-footer').value)
+    };
+    Store.saveSettings(settings);
+    showToast(t('settings_saved'),'success');
+}
+
+// === 9. الأمان ===
+function renderSecurity() {
+    const logs = JSON.parse(localStorage.getItem('securityLogs') || '[]').reverse();
+    document.getElementById('content').innerHTML = `
+        <div class="section-card">
+            <h3>🔒 معلومات الأمان</h3>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
+                <div><strong>الحالة:</strong> <span class="badge badge-active">محمي ✅</span></div>
+                <div><strong>منع XSS:</strong> <span class="badge badge-active">مفعّل ✅</span></div>
+                <div><strong>التحقق من المدخلات:</strong> <span class="badge badge-active">مفعّل ✅</span></div>
+                <div><strong>انتهاء الجلسة:</strong> <span class="badge badge-active">30 دقيقة ✅</span></div>
+                <div><strong>تشفير كلمات المرور:</strong> <span class="badge badge-active">SHA-256 ✅</span></div>
+                <div><strong>التحقق من الملفات:</strong> <span class="badge badge-active">مفعّل ✅</span></div>
+            </div>
+        </div>
+        <div class="admin-table">
+            <table><thead><tr><th>${t('event')}</th><th>${t('user')}</th><th>${t('time')}</th></tr></thead>
+            <tbody>${logs.length > 0 ? logs.map(l => `
+                <tr>
+                    <td><span class="badge badge-inactive">${Security.escapeHtml(l.type)}</span> ${Security.escapeHtml(l.detail||'')}</td>
+                    <td>-</td>
+                    <td>${l.timestamp ? new Date(l.timestamp).toLocaleString() : '-'}</td>
+                </tr>
+            `).join('') : `<tr><td colspan="3" style="text-align:center;padding:40px;color:var(--text-secondary);">${t('no_logs')}</td></tr>`}</tbody></table>
+        </div>
+    `;
+}
+
+// === 10. البيانات ===
+function renderData() {
+    document.getElementById('content').innerHTML = `
+        <div class="section-card">
+            <h3>💾 تصدير البيانات</h3>
+            <p style="color:var(--text-secondary);margin-bottom:16px;">صدّر كل بيانات المتجر (تطبيقات، فئات، كوبونات، مستخدمون، إعدادات) كملف JSON.</p>
+            <button class="btn-primary" style="width:auto;padding:14px 28px;" onclick="exportData()">📥 ${t('export_data')}</button>
+        </div>
+        <div class="section-card">
+            <h3>📥 استيراد البيانات</h3>
+            <p style="color:var(--text-secondary);margin-bottom:16px;">استورد بيانات من ملف JSON.</p>
+            <input type="file" accept=".json" onchange="importData(event)" style="padding:14px;border:1.5px dashed var(--border);border-radius:12px;width:100%;">
+        </div>
+        <div class="section-card" style="border-color:var(--error);">
+            <h3 style="color:var(--error);">⚠️ منطقة الخطر</h3>
+            <p style="color:var(--text-secondary);margin-bottom:16px;">حذف كل البيانات وإعادة المتجر لحالته الأصلية. لا يمكن التراجع!</p>
+            <button class="btn-danger" onclick="resetData()">🗑️ ${t('reset_data')}</button>
+        </div>
+    `;
+}
+
+function exportData() {
+    const data = Store.exportAll();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'app-store-backup-' + new Date().toISOString().split('T')[0] + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(t('export_success'),'success');
+}
+
+function importData(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+        try {
+            const data = JSON.parse(ev.target.result);
+            Store.importAll(data);
+            showToast(t('import_success'),'success');
+            showSection('dashboard', null);
+        } catch (err) {
+            showToast('ملف غير صالح','error');
+        }
+    };
+    reader.readAsText(file);
+}
+
+function resetData() {
+    if (!confirm(t('confirm_reset'))) return;
+    if (!confirm('⚠️ تأكيد أخير! سيتم حذف كل شيء!')) return;
+    Store.resetAll();
+    Security.clearSession();
+    showToast('تم إعادة التعيين','success');
+    setTimeout(() => window.location.href = 'index.html', 1500);
+}
+
+// === بدء التشغيل ===
+renderDashboard();
+</script>
+</body>
+</html>
